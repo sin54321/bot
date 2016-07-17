@@ -9,6 +9,7 @@
   "author": "Yee Jia",
   "license": "ISC",
   "dependencies": {
+    "async": "^2.0.0",
     "botbuilder": "^3.0.0",
     "restify": "^4.1.1"
   }
