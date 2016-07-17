@@ -18,8 +18,8 @@ var bot = new builder.UniversalBot(connector);
 server.post('/api/messages', connector.listen());
 
 // Create LUIS recognizer that points at our model and add it as the root '/' dialog for our Cortana Bot.
-//var model = 'https://api.projectoxford.ai/luis/v1/application?id=aef4ffe2-876c-4695-820f-87f5f675b698&subscription-key=3f5950571ec248afb0ba581b8ee51239';
-var model = 'https://api.projectoxford.ai/luis/v1/application?id=15c7213f-e527-4932-8796-1628ce0a2c74&subscription-key=3f5950571ec248afb0ba581b8ee51239';
+var model = 'https://api.projectoxford.ai/luis/v1/application?id=aef4ffe2-876c-4695-820f-87f5f675b698&subscription-key=3f5950571ec248afb0ba581b8ee51239';
+//var model = 'https://api.projectoxford.ai/luis/v1/application?id=15c7213f-e527-4932-8796-1628ce0a2c74&subscription-key=3f5950571ec248afb0ba581b8ee51239';
 var recognizer = new builder.LuisRecognizer(model);
 var dialog = new builder.IntentDialog({ recognizers: [recognizer] });
 bot.dialog('/', dialog);
@@ -135,7 +135,17 @@ dialog.matches('Listing',[
 			
 		}
 		else {
-          session.send("Sorry, I didn't understand.");
+			db.getAllListing();
+	   
+			setTimeout(function(){
+				var random = Math.floor((Math.random() * db.result.length));
+				var randTrip = db.result[random];
+				//store entities for random trip
+
+				var trip = 'Trip:\n' + randTrip['header'] + '\n\nIntroduction:'+ randTrip['experience'] + '\n\nExperience:' + randTrip['introduction'] + '\n\nLocation:\n ' + randTrip['location'] + '\n\nDuration:\n' + randTrip['duration'] + '\n\nLanguage:\n' + randTrip['language'] + '\n\nPrice:\n' + randTrip['price'] + '\n\nIncluded:\n' + randTrip['included'] +  '\n\nReminder:\n' + randTrip['reminder'] + '\n\nLink:\n' + randTrip['link'];
+				session.send(trip);
+				session.endDialog();
+			},1000);
         }
 		
 	},
@@ -174,20 +184,26 @@ dialog.matches('Help',[
 	}
 ]);
 
-//suggest user a random trip 
-dialog.matches('RandomTrip', [
-   function (session) {
-	   db.getAllListing();
+//when user check their ordered trip package using order number
+dialog.matches('Order', [
+   function(session, args){
 	   
-		setTimeout(function(){
-			var random = Math.floor((Math.random() * db.result.length));
-			var randTrip = db.result[random];
-			//store entities for random trip
+	   var order_num = builder.EntityRecognizer.findAllEntities(args.entities,'OrderNumber');
+	   var order_details ='';
+	   console.log(order_num);
+	   db.getOrder(order_num);
 
-			var trip = 'Trip:\n' + randTrip['header'] + '\n\nIntroduction:'+ randTrip['experience'] + '\n\nExperience:' + randTrip['introduction'] + '\n\nLocation:\n ' + randTrip['location'] + '\n\nDuration:\n' + randTrip['duration'] + '\n\nLanguage:\n' + randTrip['language'] + '\n\nPrice:\n' + randTrip['price'] + '\n\nIncluded:\n' + randTrip['included'] +  '\n\nReminder:\n' + randTrip['reminder'] + '\n\nLink:\n' + randTrip['link'];
-			session.send(trip);
-			session.endDialog();
-		},1000);
+	   setTimeout(function(){
+		   
+		   order_details = 'Order ID:'+db.result[0]['orderID']+'\n\nTotal Price:'+db.result[0]['totalPrice']+'\n\nDate:'+db.result[0]['duration']+'\n\nNumber of Prople:'+db.result[0]['numberOfPeople'];
+	   },1000)
+	   db.getOrderDetail(db.result[0]['orderID']);
+	   setTimeout(function(){
+		   order_details += '\n\nTrip:' +db.result[0]['header']+'\n\nLocation:' +db.result[0]['location'];
+		   session.send(order_details);
+		   session.endDialog();
+	   },1000)
+
     }
 
 ]);
