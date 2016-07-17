@@ -51,13 +51,13 @@ module.exports.getListing = function getListing(keywords){
   var column = "";
   for(var i =0; i < keywords.length; i ++){
     if(keywords[i]['type'] == "Location"){
-        column = "location";
+        column = `location`;
     }
     else if(keywords[i]['type'] == "Price"){
-        column = "price";
+        column = `price`;
     }
     else if(keywords[i]['type'] == "Duration"){
-      column = "duration";
+      column = `duration`;
     }
     like = like + column +` like '%${keywords[i]['entity']}%'`;
     if(keywords.length > 0 && i != keywords.length-1){
@@ -87,6 +87,7 @@ module.exports.getOrderDetail = function getOrderDetail(orderID){
   var query = `select header,location from listing where id ='${orderID}'`;
   queryFunction(query);
 }
+
 module.exports.get
 //Reuse method
 function queryFunction(query)
