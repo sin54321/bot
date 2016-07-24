@@ -1,6 +1,6 @@
 var restify = require('restify');
 var builder = require('botbuilder');
-var db = require('./sql.js');
+var db = require('./mssql.js');
 
 // Create bot and bind to console
 // Setup Restify Server
@@ -42,13 +42,7 @@ dialog.matches('FAQ', [
 			setTimeout(function(){
 			if (db.result.length>1){
 				
-				/*for(var i=0; i<db.result.length; i++){
-					answer += i+1 +". ";
-					answer += db.result[i]['question'];
-					answer += "\n";
-
-				}
-				endDialog();*/
+				
 				for(var i=0; i<db.result.length; i++){
 					
 					answer.push(db.result[i]['question']);
@@ -73,13 +67,21 @@ dialog.matches('FAQ', [
     },
 	function (session, results) {
 		if (results.response){
-			var keywords = [{entity:results.response.entity}];
-			db.getAnswer(keywords);
-			setTimeout(function(){
-				session.send('Answer: %s',db.result[0]['answer']);
+			for(var i=0;i<db.result.length;i++)
+			  {
+				if(results.response.entity == db.result[i]['question'])
+				var answer = db.result[i]['answer'];
+			  }
 
-			}	
-			,1000);
+			setTimeout(function(){
+				if(answer)
+						session.send('Answer: %s',answer);
+				else {
+				  session.send("No such answer for the question");
+				}
+
+			},1000);
+
 		}
 		session.endDialog();
 	}
@@ -123,7 +125,7 @@ dialog.matches('Listing',[
 			db.getListing(entity);
 			
 			setTimeout(function(){
-				
+			console.log(db.result);	
 				for(var i=0; i<db.result.length; i++){
 					trips.push(db.result[i]['header']);
 				}
@@ -135,14 +137,17 @@ dialog.matches('Listing',[
 			
 		}
 		else {
+			
+			//random trip for user
 			db.getAllListing();
 	   
 			setTimeout(function(){
+				console.log(db.result);
 				var random = Math.floor((Math.random() * db.result.length));
 				var randTrip = db.result[random];
 				//store entities for random trip
 
-				var trip = 'Trip:\n' + randTrip['header'] + '\n\nIntroduction:'+ randTrip['experience'] + '\n\nExperience:' + randTrip['introduction'] + '\n\nLocation:\n ' + randTrip['location'] + '\n\nDuration:\n' + randTrip['duration'] + '\n\nLanguage:\n' + randTrip['language'] + '\n\nPrice:\n' + randTrip['price'] + '\n\nIncluded:\n' + randTrip['included'] +  '\n\nReminder:\n' + randTrip['reminder'] + '\n\nLink:\n' + randTrip['link'];
+				var trip = 'Trip:\n' + randTrip['header'] + '\n\nIntroduction:'+ randTrip['introduction'] + '\n\nExperience:' + randTrip['experience'] + '\n\nLocation:\n ' + randTrip['location'] + '\n\nDuration:\n' + randTrip['duration'] + '\n\nLanguage:\n' + randTrip['language'] + '\n\nPrice:\n' + randTrip['price'] + '\n\nIncluded:\n' + randTrip['included'] +  '\n\nReminder:\n' + randTrip['reminder'] + '\n\nLink:\n' + randTrip['link'];
 				session.send(trip);
 				session.endDialog();
 			},1000);
@@ -156,8 +161,9 @@ dialog.matches('Listing',[
 
 			
 			setTimeout(function(){
+				
 				var trip = db.result[0];
-				var send = 'Trip:\n' + trip['header'] + '\n\nIntroduction:'+ trip['experience'] + '\n\nExperience:' + trip['introduction'] + '\n\nLocation:\n ' + trip['location'] + '\n\nDuration:\n' + trip['duration'] + '\n\nLanguage:\n' + trip['language'] + '\n\nPrice:\n' + trip['price'] + '\n\nIncluded:\n' + trip['included'] +  '\n\nReminder:\n' + trip['reminder'] + '\n\nLink:\n' + trip['link'];
+				var send = 'Trip:\n' + trip['header'] + '\n\nIntroduction:'+ trip['introduction'] + '\n\nExperience:' + trip['experience'] + '\n\nLocation:\n ' + trip['location'] + '\n\nDuration:\n' + trip['duration'] + '\n\nLanguage:\n' + trip['language'] + '\n\nPrice:\n' + trip['price'] + '\n\nIncluded:\n' + trip['included'] +  '\n\nReminder:\n' + trip['reminder'] + '\n\nLink:\n' + trip['link'];
 				session.send(send);
 
 			}	
@@ -189,21 +195,43 @@ dialog.matches('Order', [
    function(session, args){
 	   
 	   var order_num = builder.EntityRecognizer.findAllEntities(args.entities,'OrderNumber');
-	   var order_details ='';
-	   console.log(order_num);
-	   db.getOrder(order_num);
-
-	   setTimeout(function(){
+	   if (order_num){
+		   var order_details ='';
+		   console.log(order_num);
+		   db.getOrder(order_num);
 		   
-		   order_details = 'Order ID:'+db.result[0]['orderID']+'\n\nTotal Price:'+db.result[0]['totalPrice']+'\n\nDate:'+db.result[0]['duration']+'\n\nNumber of Prople:'+db.result[0]['numberOfPeople'];
-	   },1000)
-	   db.getOrderDetail(db.result[0]['orderID']);
-	   setTimeout(function(){
-		   order_details += '\n\nTrip:' +db.result[0]['header']+'\n\nLocation:' +db.result[0]['location'];
-		   session.send(order_details);
-		   session.endDialog();
-	   },1000)
+		   setTimeout(function(){
+			   
+			   if(db.result){
 
+				   setTimeout(function(){
+					   
+					   order_details = 'Order ID:'+db.result[0]['orderID']+'\n\nTotal Price:'+db.result[0]['totalPrice']+'\n\nDate:'+db.result[0]['duration']+'\n\nNumber of Prople:'+db.result[0]['numberOfPeople'];
+					   console.log(order_details);
+					   console.log(db.result[0]['orderID']);
+					   db.getOrderDetail(db.result[0]['listingID']);
+					   console.log(db.result);
+					   setTimeout(function(){
+						   order_details += '\n\nTrip:' +db.result[0]['header']+'\n\nLocation:' +db.result[0]['location'];
+						   session.send(order_details);
+						   session.endDialog();
+
+					   },1000);
+					   
+				   },1000);
+			   }
+			   else{
+					session.send("Order number undefined. Please enter again.");
+					session.endDialog();
+				   
+			   }
+		   },1000);
+	   }
+	   else{
+		   session.send("Please enter your order number!");
+		   session.endDialog();
+	   }
+	   
     }
 
 ]);
@@ -211,9 +239,17 @@ dialog.matches('Order', [
 
 
 bot.use({
-    dialog: function (session) {
-        session.userData.isLogging = true;
+    botbuilder: function (session, next) {
+
+        if (session.userData.isLogging) {
+            console.log('Message Received: ', session.message.text);
+        }
+		else{
+			session.userData.isLogging = true;
+		}
+		next();
     }
+    
 });
 
 
