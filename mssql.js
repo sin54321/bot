@@ -91,24 +91,38 @@ module.exports.getListing = function getListing(keywords){
   queryFunction(query);
 }
 
-module.exports.searchListing = function getListing(keywords){
 
-  var query = `select * from listing where header = '${keywords}'`;
+module.exports.searchListing = function searchListing(keywords){
+
+  var query = `select * from listing JOIN package ON listing.ID = package.listingID where header = '${keywords}'`;
   queryFunction(query);
 
 }
 
 module.exports.getOrder = function getOrder(keywords){
 
-  var query = `select * from orderdetail where orderID ='${keywords[0]['entity']}'`;
+	var query = `SELECT orderDetail.customerID,
+		orderDetail.orderID,
+		orderDetail.totalPrice,
+		CONVERT(varchar(10), orderDetail.travelDate) AS travelDate,
+		orderDetail.duration,
+		customer.firstName,
+		orderDetail.totalNumOfPeople,
+		listing.header,
+		listing.location,
+		package.packageTitle
+FROM [orderDetail]
+JOIN [customer]
+	ON [orderDetail].[customerID] = [customer].[customerID]
+JOIN [listing]
+	ON [orderDetail].listingID = [listing].[id]
+JOIN [package]
+	ON [orderDetail].packageID = [package].packageID
+WHERE [orderDetail].[orderID] = '${keywords[0]['entity']}';
+`;
   queryFunction(query);
 }
 
-module.exports.getOrderDetail = function getOrderDetail(listingID){
-
-  var query = `select header,location from listing where id ='${listingID}'`;
-  queryFunction(query);
-}
 
 //Reuse method
 
@@ -184,3 +198,4 @@ module.exports.getOrder(orderID);
 */
 //module.exports.getOrderDetail("001A");
 //module.exports.getAllListing();
+
