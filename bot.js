@@ -1,6 +1,6 @@
 var restify = require('restify');
 var builder = require('botbuilder');
-var db = require('./mssql.js');
+var db = require('./mysql.js');
 
 // Create bot and bind to console
 // Setup Restify Server
@@ -55,10 +55,13 @@ dialog.matches('FAQ', [
 
 			}
 			else if(db.result.length=1){
-				
+
 				message = 'Answer: '+ db.result[0]['answer'];
 				session.send(message);
 				log_output(message,session);
+
+			}
+			else{
 
 			}
 
@@ -76,8 +79,9 @@ dialog.matches('FAQ', [
 		if (results.response){
 			for(var i=0;i<db.result.length;i++)
 			  {
-				if(results.response.entity == db.result[i]['question'])
-				var answer = db.result[i]['answer'];
+				if(results.response.entity == db.result[i]['question']){
+					var answer = db.result[i]['answer'];
+				}
 			  }
 
 			setTimeout(function(){
@@ -87,7 +91,7 @@ dialog.matches('FAQ', [
 					log_output(message,session);
 				}
 				else {
-					message = "No such answer for the question"
+				  message = "No such answer for the question"
 				  session.send(message);
 				  log_output(message,session);
 				}
@@ -108,10 +112,29 @@ dialog.matches('Listing',[
 		var trip_loc = builder.EntityRecognizer.findAllEntities(args.entities,'Location');
 		var duration = builder.EntityRecognizer.findAllEntities(args.entities,'Duration');
 		var price = builder.EntityRecognizer.findAllEntities(args.entities,'Price');
-		var entity = [];
-		console.log(trip_loc);
-		console.log(duration);
-		console.log(price);
+
+	    var greater = builder.EntityRecognizer.findAllEntities(args.entities,'Greater');
+	    var below = builder.EntityRecognizer.findAllEntities(args.entities,'Below');
+	    var equal = builder.EntityRecognizer.findAllEntities(args.entities,'Equal');
+	    var between = builder.EntityRecognizer.findAllEntities(args.entities,'Between');
+
+	    var category = builder.EntityRecognizer.findAllEntities(args.entities,'Category');
+			var entity = [];
+
+	    if(greater)
+	    console.log(greater);
+	    if(below)
+	    console.log(below);
+	    if(equal)
+	    console.log(equal);
+	    if(between)
+	    console.log(between);
+	    if(category)
+	    console.log(category);
+
+		//console.log(trip_loc);
+		//console.log(duration);
+		//console.log(price);
 
 		if(trip_loc){
 			for(var i=0;i<trip_loc.length;i++){
@@ -131,7 +154,35 @@ dialog.matches('Listing',[
 			}
 		};
 
+    if(greater){
+			for(var i=0;i<greater.length;i++){
+				entity.push(greater[i]);
+			}
+		};
+    if(equal){
+			for(var i=0;i<equal.length;i++){
+				entity.push(equal[i]);
+			}
+		};
+    if(below){
+			for(var i=0;i<below.length;i++){
+				entity.push(below[i]);
+			}
+		};
+    if(between){
+			for(var i=0;i<between.length;i++){
+				entity.push(between[i]);
+			}
+		};
+	if(category){
+			for(var i=0;i<category.length;i++){
+				entity.push(category[i]);
+			}
+		};
+
+    console.log('/====entity====/');
 		console.log(entity);
+    console.log('/====entity====/');
 		if(entity.length>0)
         {
 			db.getListing(entity);
@@ -192,7 +243,9 @@ dialog.matches('Listing',[
 					'\n\nLink:\n' + randTrip['link'];
 
 					session.send(trip);
+
 					log_output(trip,session);
+
 					session.endDialog();
 				},1000);
 			},1000);
@@ -242,7 +295,7 @@ dialog.matches('Listing',[
 dialog.matches('Greeting',[
 	function (session) {
 		var message ='Hi! Welcome to ChatBot for Departsoon!!!';
-        session.send(message);
+        	session.send(message);
 		log_output(message,session);
 	}
 ]);
@@ -259,6 +312,7 @@ dialog.matches('Help',[
 		log_output(message,session);
 	}
 ]);
+
 
 //when user check their ordered trip package using order number
 dialog.matches('Order', [
@@ -285,7 +339,7 @@ dialog.matches('Order', [
              '\n\nPackage:'+db.result[0]['packageTitle']+
              '\n\nTotal Price:'+db.result[0]['totalPrice']+
              '\n\nDate:'+db.result[0]['travelDate']+
-             '\n\nDuration:'+db.result[0]['duration']+
+             '\n\nDuration:'+db.result[0]['tripduration']+
              '\n\nNumber of People:'+db.result[0]['totalNumOfPeople'];
 					   console.log(order_details);
 					   console.log(db.result);
@@ -315,20 +369,86 @@ dialog.matches('Order', [
 ]);
 
 
+bot.use(
+	{
+	botbuilder: function (session, next) {
 
-bot.use({
-    botbuilder: function (session, next, args, msg) {
+		//log user name and user id if conversation id is not detected
+	    if (!session.userData.firstRun) {
 
-        console.log('Message Received: ', session.message.text);
-		next();
-		
-    }
+	        session.userData.firstRun = true;
+	        console.log('---------------------validate user data-------------------------');
+	        console.log(session.message.address.user.id);
+		    console.log(session.message.address.user.name);
+		    console.log(session.message.address.conversation.id);
 
+		   	//confirm if the conversation ID exist
+		   	db.search_conv(session.message.address.conversation.id);
+
+		   	setTimeout(function(){
+
+		   		if(db.result == undefined){
+		   			db.insertUser(session.message.address.user.id , session.message.address.user.name , session.message.address.conversation.id);
+		   		}
+
+				console.log(db.result);
+
+		   },350);
+
+	    }
+
+	    setTimeout(function(){
+
+	        console.log('Message Received: ', session.message.text);
+
+
+	        var inputDate='',inputTime='';
+			var timestamp = session.message.timestamp;
+			console.log(timestamp);
+
+			//split timestamp into date and time
+			//date
+	        var pos = timestamp.indexOf('T');
+	        for (var i = 0; i < pos; i++)
+	        	inputDate += timestamp[i];
+	        console.log(inputDate);
+
+	        //time
+	        var pos2 = timestamp.indexOf('.');
+	        for (var i = pos+1; i < pos2; i++)
+	        	inputTime += timestamp[i];
+	        console.log(inputTime);
+
+
+	        console.log(session.message.address.conversation.id);
+
+	   
+	        db.insertConv_user(session.message.address.id, session.message.address.conversation.id, session.message.text, inputDate, inputTime);
+			next();
+			},550);
+
+    	}
 });
 
+
+
+//logging the output of the bot
 function log_output(message,session){
+
 	console.log('Message sent:',message);
+	console.log('Log output');
+	
+	//replace the apostrophe to format that can input into mysql database
+	message = message.split("'").join("''");
+
+	db.insertConv_bot(message,session.message.address.id);
+
 }
 
 
-dialog.onDefault(builder.DialogAction.send("I'm sorry I didn't understand."));
+//default dialog
+dialog.onDefault(function (session) {
+	var message ="Sorry, I didn't understand'.";
+	session.send(message);
+	log_output(message,session);
+});

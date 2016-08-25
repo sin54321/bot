@@ -3,9 +3,7 @@
   "version": "1.0.0",
   "description": "a chatbot",
   "main": "index.js",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
-  },
+ 
   "author": "Yee Jia",
   "license": "ISC",
   "dependencies": {
@@ -13,5 +11,8 @@
     "botbuilder": "^3.0.0",
     "express": "^4.14.0",
     "restify": "^4.1.1"
+  },
+  "scripts": {
+    "test": "mocha tests/*.js"
   }
 }

@@ -3,12 +3,14 @@ var builder = require('botbuilder');
 var db = require('./mysql.js');
 var message_sent;
 
+
 // Create bot and bind to console
 // Setup Restify Server
 var server = restify.createServer();
 server.listen(process.env.port || process.env.PORT || 3978, function () {
    console.log('%s listening to %s', server.name, server.url);
 });
+
 
 // Create chat bot
 var connector = new builder.ChatConnector({
@@ -17,6 +19,7 @@ var connector = new builder.ChatConnector({
 });
 var bot = new builder.UniversalBot(connector);
 server.post('/api/messages', connector.listen());
+
 
 // Create LUIS recognizer that points at our model and add it as the root '/' dialog for our Cortana Bot.
 var model = 'https://api.projectoxford.ai/luis/v1/application?id=aef4ffe2-876c-4695-820f-87f5f675b698&subscription-key=3f5950571ec248afb0ba581b8ee51239';
@@ -48,10 +51,12 @@ dialog.matches('FAQ', [
 					answer.push(db.result[i]['question']);
 
 				}
-				message='Did you mean: ';
-				builder.Prompts.choice(session,message,answer);
-				message += answer;
-				log_output(message,session);
+				setTimeout(function(){
+					message='Did you mean: ';
+					builder.Prompts.choice(session,message,answer);
+					message += answer;
+					log_output(message,session);
+				},1000);
 
 
 			}
@@ -62,6 +67,11 @@ dialog.matches('FAQ', [
 				log_output(message,session);
 
 			}
+			else{
+				message = 'Sorry, no results for the question.';
+				session.send(message);
+				log_output(message,session);
+			}
 
           },1000);
         }
@@ -69,35 +79,48 @@ dialog.matches('FAQ', [
 			message ="Sorry, I didn't understand.";
           session.send(message);
 		  log_output(message,session);
+
         }
 
     },
 	function (session, results) {
 		var message=null;
 		if (results.response){
-			for(var i=0;i<db.result.length;i++)
-			  {
-				if(results.response.entity == db.result[i]['question'])
-				var answer = db.result[i]['answer'];
-			  }
 
+			db.getAllAnswer();
 			setTimeout(function(){
-				if(answer){
-					message = "Answer: " + answer;
-					session.send(message);
-					log_output(message,session);
-				}
-				else {
-					message = "No such answer for the question"
-				  session.send(message);
-				  log_output(message,session);
-				}
+				if (db.result){
+					for(var i=0;i<db.result.length;i++)
+					  {
+						if(results.response.entity == db.result[i]['question'])
+						var answer = db.result[i]['answer'];
+					  }
 
+					setTimeout(function(){
+						if(answer){
+							message = "Answer: " + answer;
+							session.send(message);
+							log_output(message,session);
+							
+						}
+						else {
+							message = "No such answer for the question";
+						  session.send(message);
+						  log_output(message,session);
+						}
+					
+						
+
+					},1000);
+				}
 			},1000);
-
 		}
-		session.endDialog();
-	}
+		else{
+			console.log("No response.");
+			
+		}
+		session.endDialog();  	
+		}
 
 ]);
 
@@ -169,6 +192,11 @@ dialog.matches('Listing',[
     if(between){
 			for(var i=0;i<between.length;i++){
 				entity.push(between[i]);
+			}
+		};
+	if(category){
+			for(var i=0;i<category.length;i++){
+				entity.push(category[i]);
 			}
 		};
 
@@ -279,6 +307,10 @@ dialog.matches('Listing',[
       ,1000);
 
 		}
+		else{
+			console.log("No response.");
+			
+		}
 		session.endDialog();
 
 }]);
@@ -291,6 +323,16 @@ dialog.matches('Greeting',[
 		log_output(message,session);
 	}
 ]);
+
+//lead user to departsoon.com if user want more details
+dialog.matches('Continue',[
+	function (session) {
+		var message ='Please check https://www.departsoon.com for more details!';
+        session.send(message);
+		log_output(message,session);
+	}
+]);
+
 
 //if user need help
 dialog.matches('Help',[
@@ -309,6 +351,7 @@ dialog.matches('Help',[
 //when user check their ordered trip package using order number
 dialog.matches('Order', [
    function(session, args){
+
 
 	   var order_num = builder.EntityRecognizer.findAllEntities(args.entities,'OrderNumber');
 	   var message=null;
@@ -335,7 +378,7 @@ dialog.matches('Order', [
              '\n\nNumber of People:'+db.result[0]['totalNumOfPeople'];
 					   console.log(order_details);
 					   console.log(db.result);
-             session.endDialog(order_details);
+             session.send(order_details);
 			 log_output(order_details,session);
 
 				   },1000);
@@ -344,7 +387,7 @@ dialog.matches('Order', [
 				   message="Sorry no result for the order number.";
 					session.send(message);
 					log_output(message,session);
-					session.endDialog();
+					
 
 			   }
 		   },1000);
@@ -353,9 +396,10 @@ dialog.matches('Order', [
 		   message ="Please enter your order number!";
 		   session.send(message);
 		   log_output(message,session);
-		   session.endDialog();
+		   
 	   }
 
+	   session.endDialog();
     }
 
 ]);
@@ -366,60 +410,72 @@ bot.use(
 	botbuilder: function (session, next) {
 
 		//log user name and user id if conversation id is not detected
-	    if (!session.userData.firstRun) {
+		db.getUser();
+		setTimeout(function(){
 
-	        session.userData.firstRun = true;
-	        console.log('---------------------validate user data-------------------------');
-	        console.log(session.message.address.user.id);
-		    console.log(session.message.address.user.name);
-		    console.log(session.message.address.conversation.id);
-
-		   	//confirm if the conversation ID exist
-		   	db.search_conv(session.message.address.conversation.id);
-
-		   	setTimeout(function(){
-
-		   		if(db.result == undefined){
-		   			db.insertUser(session.message.address.user.id , session.message.address.user.name , session.message.address.conversation.id);
-		   		}
-
-				console.log(db.result);
-
-		   },1000);
-
-	    }
-
-	    setTimeout(function(){
-
-	        console.log('Message Received: ', session.message.text);
+			var id_available=0;
+			for (var i=0; i<db.result.length;i++){
+			    if (db.result[i].userID === session.message.address.user.id) {
+			    	id_available = 1;
+			    }
+			}
 
 
-	        var inputDate='',inputTime='';
-			var timestamp = session.message.timestamp;
-			console.log(timestamp);
 
-			//split timestamp into date and time
-			//date
-	        var pos = timestamp.indexOf('T');
-	        for (var i = 0; i < pos; i++)
-	        	inputDate += timestamp[i];
-	        console.log(inputDate);
+			if (id_available===0) {
 
-	        //time
-	        var pos2 = timestamp.indexOf('.');
-	        for (var i = pos+1; i < pos2; i++)
-	        	inputTime += timestamp[i];
-	        console.log(inputTime);
+			        console.log('---------------------validate user data-------------------------');
+			        console.log(session.message.address.user.id);
+				    console.log(session.message.address.user.name);
+				    console.log(session.message.address.conversation.id);
+
+				   	//confirm if the conversation ID exist
+				   	db.search_conv(session.message.address.conversation.id);
+
+				   	setTimeout(function(){
+
+				   		if(db.result == undefined){
+				   			db.insertUser(session.message.address.user.id , session.message.address.user.name , session.message.address.conversation.id);
+				   		}
+
+						//console.log(db.result);
+
+				   },1000);
+
+			    }
+
+	    	setTimeout(function(){
+
+		        console.log('Message Received: ', session.message.text);
 
 
-	        console.log(session.message.address.conversation.id);
+		        var inputDate='',inputTime='';
+				var timestamp = session.message.timestamp;
+				//sconsole.log(timestamp);
 
-	   
-	        db.insertConv_user(session.message.address.id, session.message.address.conversation.id, session.message.text, inputDate, inputTime);
-			next();
+				//split timestamp into date and time
+				//date
+		        var pos = timestamp.indexOf('T');
+		        for (var i = 0; i < pos; i++)
+		        	inputDate += timestamp[i];
+		        //console.log(inputDate);
+
+		        //time
+		        var pos2 = timestamp.indexOf('.');
+		        for (var i = pos+1; i < pos2; i++)
+		        	inputTime += timestamp[i];
+		        //console.log(inputTime);
+
+
+		        //console.log(session.message.address.conversation.id);
+		        db.insertConv_user(session.message.address.id, session.message.address.conversation.id, session.message.text, inputDate, inputTime);
+				next();
 			},1000);
 
-    	}
+		},1000 );
+
+		
+    }
 });
 
 
@@ -429,12 +485,20 @@ function log_output(message,session){
 
 	console.log('Message sent:',message);
 	console.log('Log output');
-	message = message.replace("'","''");
+	
+	//replace the apostrophe to format that can input into mysql database
+	message = message.split("'").join("''");
+
 	db.insertConv_bot(message,session.message.address.id);
 
 }
 
 
-
 //default dialog
-dialog.onDefault(builder.DialogAction.send("I'm sorry I didn't understand."));
+dialog.onDefault(function (session) {
+	var message ="Sorry, I didn't understand'.";
+	session.send(message);
+	log_output(message,session);
+});
+
+ 

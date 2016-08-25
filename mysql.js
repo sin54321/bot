@@ -4,7 +4,7 @@ var connection = mysql.createConnection({
     user: 'root',
     password: '',
     database:'bot_database',
-    port: 3307
+
 });
 
 //Validate connection
@@ -41,6 +41,13 @@ module.exports.getAnswer = function getAnswer(keywords) {
   queryFunction(query);
 
 }
+
+module.exports.getAllAnswer = function getAllAnswer(){
+  var query = `select question,answer from faq`;
+  queryFunction(query);
+}
+
+
 module.exports.getAllListing = function getAllListing(){
   var query = `select * from listing`;
   queryFunction(query);
@@ -134,6 +141,11 @@ module.exports.insertUser = function insertUser(id,name,convID){
    queryFunction(query);
 }
 
+module.exports.getUser = function getUser(){
+
+  var query = `select * from log_user`;
+   queryFunction(query);
+};
 
 module.exports.insertConv_user = function insertConv(addid,convid,msg,idate,itime){
   
